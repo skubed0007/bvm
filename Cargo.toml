@@ -3,6 +3,16 @@ name = "bvm"
 version = "0.1.0"
 edition = "2021"
 
+
+[profile.release]
+opt-level = 3 # Maximum optimization level
+lto = true # Enable Link-Time Optimization
+codegen-units = 1 # Better optimization by reducing parallel codegen units
+panic = "abort" # Abort on panic
+debug = false # Strip debug information
+incremental = false # Disable incremental compilation
+
+
 [dependencies]
 clearscreen = "3.0.0"
 colored = "2.1.0"
