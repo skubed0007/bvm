@@ -92,10 +92,12 @@ impl Run for Func {
                             top.push_str(txt.trim_start_matches("\"").trim_end_matches("\""));
                         } else {
                             //println!("checking for vars near 94");
-                            for vr in vrs.clone(){
+                            for vr in vrs.clone() {
                                 //println!("cur var : {:?}",vr.clone());
-                                if txt == vr.name{
-                                    top.push_str(&vr.val.trim_start_matches("\"").trim_end_matches("\""));
+                                if txt == vr.name {
+                                    top.push_str(
+                                        &vr.val.trim_start_matches("\"").trim_end_matches("\""),
+                                    );
                                 }
                             }
                         }
@@ -112,9 +114,11 @@ impl Run for Func {
                         if txt.starts_with("\"") {
                             top.push_str(txt.trim_start_matches("\"").trim_end_matches("\""));
                         } else {
-                            for vr in vrs.clone(){
-                                if txt == vr.name{
-                                    top.push_str(&vr.val.trim_start_matches("\"").trim_end_matches("\""));
+                            for vr in vrs.clone() {
+                                if txt == vr.name {
+                                    top.push_str(
+                                        &vr.val.trim_start_matches("\"").trim_end_matches("\""),
+                                    );
                                 }
                             }
                         }
@@ -149,24 +153,184 @@ impl Run for Func {
                     //     i.display();
                     // }
                 }
-            }
-            else if cd.starts_with("takein"){
+            } else if cd.starts_with("takein") {
                 let tkinrg = Regex::new(r#"takein\((.*?)\);"#).unwrap();
-                if let Some(cap) = tkinrg.captures(cd){
+                if let Some(cap) = tkinrg.captures(cd) {
                     let vrnm = cap.get(1).unwrap().as_str();
-                    for i in vrs.iter_mut(){
-                        if vrnm == i.name{
+                    for i in vrs.iter_mut() {
+                        if vrnm == i.name {
                             let mut vl = String::new();
                             stdin().read_line(&mut vl).unwrap();
                             i.val = vl.trim().to_string();
                         }
                     }
                 }
-            }
-            else if cd.starts_with("add"){
-                
-            }
-             else {
+            } else if cd.starts_with("add") {
+                let adrg = Regex::new(r#"add\((.*?)\);"#).unwrap();
+                if let Some(cap) = adrg.captures(cd) {
+                    let expr = cap.get(1).unwrap().as_str();
+                    let mut varndexpr = expr.split(":");
+                    let mut ix = 0;
+                    let mut fv = "0".to_string();
+                    let mut tsvr = Var::new("name".to_string(), "".to_string(), VType::S);
+                    while let Some(i) = varndexpr.next() {
+                        if ix == 0 {
+                            let tgvrnm = i;
+                            for vr in vrs.clone() {
+                                if tgvrnm == vr.name {
+                                    tsvr = vr;
+                                }
+                            }
+                            ix += 1;
+                        } else {
+                            let vls = i.split(",");
+                            for vl in vls {
+                                if vl.parse::<i128>().is_ok() {
+                                    let vl_i128 = vl.parse::<i128>().unwrap_or(0);
+                                    if !fv.is_empty() {
+                                        if fv.parse::<i128>().is_ok() {
+                                            fv = (fv.parse::<i128>().unwrap_or(0) + vl_i128)
+                                                .to_string();
+                                        } else if fv.parse::<f64>().is_ok() {
+                                            fv = (fv.parse::<f64>().unwrap_or(0.0)
+                                                + vl_i128 as f64)
+                                                .to_string();
+                                        } else {
+                                            fv = format!("{}{}", fv, vl_i128);
+                                        }
+                                    } else {
+                                        fv = vl_i128.to_string();
+                                    }
+                                } else if vl.parse::<f64>().is_ok() {
+                                    let vl_f64 = vl.parse::<f64>().unwrap_or(0.0);
+                                    if !fv.is_empty() {
+                                        if fv.parse::<f64>().is_ok() {
+                                            fv = (fv.parse::<f64>().unwrap_or(0.0) + vl_f64)
+                                                .to_string();
+                                        } else if fv.parse::<i128>().is_ok() {
+                                            fv = (fv.parse::<i128>().unwrap_or(0) as f64 + vl_f64)
+                                                .to_string();
+                                        } else {
+                                            fv = format!("{}{}", fv, vl_f64);
+                                        }
+                                    } else {
+                                        fv = vl_f64.to_string();
+                                    }
+                                } else {
+                                    for i in vrs.clone() {
+                                        if i.name == vl {
+                                            let getval = i.val;
+                                            if getval.parse::<i128>().is_ok() {
+                                                fv = (fv.parse::<i128>().unwrap_or(0)
+                                                    + getval.parse::<i128>().unwrap())
+                                                .to_string();
+                                            } else if getval.parse::<f64>().is_ok() {
+                                                fv = (fv.parse::<f64>().unwrap_or(0.0)
+                                                    + getval.parse::<i128>().unwrap() as f64)
+                                                    .to_string();
+                                            } else {
+                                                fv = format!("{}{}", fv, getval);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    tsvr.val = fv.clone();
+                    for vr in vrs.iter_mut() {
+                        if vr.name == tsvr.name {
+                            vr.val = fv.clone();
+                        }
+                    }
+                }
+            } else if cd.starts_with("sub") {
+                let sbrg = Regex::new(r#"sub\((.*?)\);"#).unwrap();
+                if let Some(cap) = sbrg.captures(cd) {
+                    let expr = cap.get(1).unwrap().as_str();
+                    let mut varndexpr = expr.split(":");
+                    let mut ix = 0;
+                    let mut fv = "0".to_string();
+                    let mut tsvr = Var::new("name".to_string(), "".to_string(), VType::S);
+                    while let Some(i) = varndexpr.next() {
+                        if ix == 0 {
+                            let tgvrnm = i;
+                            for vr in vrs.clone() {
+                                if tgvrnm == vr.name {
+                                    tsvr = vr;
+                                }
+                            }
+                            ix += 1;
+                        } else {
+                            let vls = i.split(",");
+                            for vl in vls {
+                                if vl.parse::<i128>().is_ok() {
+                                    let vl_i128 = vl.parse::<i128>().unwrap_or(0);
+                                    if !fv.is_empty() {
+                                        if fv.parse::<i128>().is_ok() {
+                                            fv = (fv.parse::<i128>().unwrap_or(0) - vl_i128)
+                                                .to_string();
+                                            //println!("fv at 252 - {}", fv);
+                                        } else if fv.parse::<f64>().is_ok() {
+                                            fv = (fv.parse::<f64>().unwrap_or(0.0)
+                                                - vl_i128 as f64)
+                                                .to_string();
+                                            //println!("fv at 256 - {}", fv);
+                                        } else {
+                                            fv = format!("{}{}", fv, vl_i128);
+                                            //println!("fv at 260 - {}", fv);
+                                        }
+                                    } else {
+                                        fv = vl_i128.to_string();
+                                        //println!("fv at 265 - {}", fv);
+                                    }
+                                } else if vl.parse::<f64>().is_ok() {
+                                    let vl_f64 = vl.parse::<f64>().unwrap_or(0.0);
+                                    if !fv.is_empty() {
+                                        if fv.parse::<f64>().is_ok() {
+                                            fv = (fv.parse::<f64>().unwrap_or(0.0) - vl_f64)
+                                                .to_string();
+                                            //println!("fv at 265 - {}", fv);
+                                        } else if fv.parse::<i128>().is_ok() {
+                                            fv = (fv.parse::<i128>().unwrap_or(0) as f64 - vl_f64)
+                                                .to_string();
+                                            // println!("fv at 268 - {}", fv);
+                                        } else {
+                                            fv = format!("{}{}", fv, vl_f64);
+                                            //println!("fv at 272 - {}", fv);
+                                        }
+                                    } else {
+                                        fv = vl_f64.to_string();
+                                    }
+                                } else {
+                                    for i in vrs.clone() {
+                                        if i.name == vl {
+                                            let getval = i.val;
+                                            if getval.parse::<i128>().is_ok() {
+                                                fv = (fv.parse::<i128>().unwrap_or(0)
+                                                    + getval.parse::<i128>().unwrap())
+                                                .to_string();
+                                            } else if getval.parse::<f64>().is_ok() {
+                                                fv = (fv.parse::<f64>().unwrap_or(0.0)
+                                                    + getval.parse::<i128>().unwrap() as f64)
+                                                    .to_string();
+                                            } else {
+                                                fv = format!("{}{}", fv, getval);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    tsvr.val = fv.clone();
+                    for vr in vrs.iter_mut() {
+                        if vr.name == tsvr.name {
+                            vr.val = fv.clone();
+                        }
+                    }
+                }
+            } else {
                 for fs in fns.clone() {
                     let tocll = format!("{}();", fs.name);
                     if cd == tocll {
@@ -187,6 +351,12 @@ struct Var {
     name: String,
     val: String,
     vtype: VType,
+}
+
+impl Var {
+    fn new(name: String, val: String, vtype: VType) -> Self {
+        Self { name, val, vtype }
+    }
 }
 
 trait VarT {
